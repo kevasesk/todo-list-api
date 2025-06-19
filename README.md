@@ -31,19 +31,8 @@ Follow these steps to set up your development environment.
 3.  **Install the dependencies:**
     ```bash
     docker compose exec php composer install
+    docker compose exec php npm install
     docker compose exec php npm run build
-    ```
-
-
-4.  **Set up the db settings:**
-
-    ```settings
-    DB_CONNECTION=mysql
-    DB_HOST=db
-    DB_PORT=3306
-    DB_DATABASE=database
-    DB_USERNAME=user
-    DB_PASSWORD=password
     ```
 
 5. **Run database migrations:**
