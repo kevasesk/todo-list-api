@@ -4,10 +4,6 @@ services:
       build:
         context: .
         dockerfile: ./images/phpfpm/Dockerfile
-        args:
-          USER_ID: 1000
-          GROUP_ID: 1000
-      user: "1000:1000"
       volumes:
         - './src:/var/www/html'
       depends_on:
@@ -47,4 +43,3 @@ services:
 
 volumes:
   dbdata:
-  mongo-data:

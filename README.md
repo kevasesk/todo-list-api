@@ -16,35 +16,24 @@ Follow these steps to set up your development environment.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/kevasesk/todo-list-api.git](https://github.com/kevasesk/todo-list-api.git)
+    git clone https://github.com/kevasesk/todo-list-api.git
     cd todo-list-api
     ```
 
 2.  **Build and start the Docker containers:**
-    This command will build the necessary Docker images and start the services (like your web server, database, etc.) in detached mode.
     ```bash
     docker compose up -d --remove-orphans
     ```
 
-3.  **Install Laravel in a new container:**
-    If this is a brand new project setup, you'll need to use Composer to install the Laravel framework into the correct directory within your container.
 
-    * First, ensure you have the Laravel installer available globally via Composer:
-        ```bash
-        composer global require laravel/installer
-        ```
-    * Then, execute the `create-project` command to install Laravel in the `/var/www/html` volume, which is mounted into your PHP container:
-        ```bash
-        docker compose exec php composer create-project --prefer-dist laravel/laravel .
-        ```
-    ***Note:*** *If you have cloned a repository that already contains a Laravel project, you can skip the two commands above and instead just install the dependencies:*
+3.  **Install the dependencies:**
     ```bash
     docker compose exec php composer install
+    docker compose exec php npm run build
     ```
 
 
-4.  **Set up the environment file:**
-    Copy the example environment file. Laravel uses this file for all configuration variables.
+4.  **Set up the db settings:**
 
 
     DB_CONNECTION=mysql
@@ -55,7 +44,6 @@ Follow these steps to set up your development environment.
     DB_PASSWORD=password
 
 5. **Run database migrations:**
-    This will create all the necessary tables in your database as defined in your migration files.
     ```bash
     docker compose exec php php artisan migrate
     ```
@@ -79,9 +67,18 @@ Follow these steps to set up your development environment.
     docker compose stop
     ```
 
-### Running Artisan Commands
+On the main page http://localhost there is a two forms: Login and Registration.
+If you have already login - you can just login using credentials.
+If not, you can register user.
 
-To run any `php artisan` command, you need to execute it inside the `app` container:
+After successed Login or Register - you will redirect to '/tasks' dashboard.
+On this page there is a name of user, Logout button, form to create/edit task 
+and a table with filters and sorts for tasks of the user.
 
-```bash
-docker compose exec php php artisan <your-command-here>
+For creating a Child of task - click "Add Child Task" button, it will set Parent ID to form, then create a new task.
+For multi-sort, click on column with holding Shift.
+
+
+### License
+
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

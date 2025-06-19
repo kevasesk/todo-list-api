@@ -13,13 +13,8 @@ RUN docker-php-ext-install \
     && docker-php-ext-install sockets
 
 #Install node
-RUN curl https://nodejs.org/dist/v16.14.2/node-v16.14.2-linux-x64.tar.xz --output node.tar.xz \
-    && mkdir /usr/local/lib/node \
-    && tar -xJvf node.tar.xz \
-    && mv node-v16.14.2-linux-x64 /usr/local/lib/node/nodejs \
-    && echo "export NODEJS_HOME=/usr/local/lib/node/nodejs" >> ~/.profile \
-    && echo "export PATH=\$NODEJS_HOME/bin:\$PATH" >> ~/.profile \
-    && . ~/.profile
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
