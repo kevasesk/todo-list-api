@@ -24,7 +24,7 @@ Follow these steps to set up your development environment.
 
 2.  **Build and start the Docker containers:**
     ```bash
-    docker compose up -d --remove-orphans
+    docker compose up -d
     ```
 
 
@@ -38,6 +38,12 @@ Follow these steps to set up your development environment.
 5. **Run database migrations:**
     ```bash
     docker compose exec php php artisan migrate
+    ```
+   
+6. **Fix permission:**
+    ```bash
+    docker compose exec php chmod -R 775 .
+    docker compose exec php chown -R www-data:www-data .
     ```
 
 7.  **Access the application:**
