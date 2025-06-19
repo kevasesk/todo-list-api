@@ -6,10 +6,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Enums\TaskStatus;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
+use Illuminate\Validation\Rules\Enum;
 
 class TaskController extends Controller
 {
@@ -17,8 +19,9 @@ class TaskController extends Controller
     {
         $query = Task::where('user_id', $request->user()->id);
 
-        if ($request->has('status') && in_array($request->status, ['todo', 'done'])) {
-            $query->where('status', $request->status);
+        if ($request->has('status')) {
+            $status = TaskStatus::from($request->input('status'));
+            $query->where('status', $status->value);
         }
 
         if ($request->has('priority')) {
@@ -64,10 +67,10 @@ class TaskController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => Rule::in(['todo', 'done']),
-            'priority' => 'integer|min:1|max:5',
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::enum(TaskStatus::class)],
+            'priority' => ['integer', 'min:1', 'max:5'],
         ]);
 
         $task = new Task();
@@ -77,7 +80,7 @@ class TaskController extends Controller
         $task->description = $request->input('description');
         $task->status = $request->input('status', 'todo');
         $task->priority = $request->input('priority', 5);
-        $task->completed_at = $task->status === 'done' ? Carbon::now() : null;
+        $task->completed_at = $task->status === TaskStatus::Done ? Carbon::now() : null;
 
         $task->save();
 
@@ -92,13 +95,13 @@ class TaskController extends Controller
     public function update(Request $request, Task $task): JsonResponse
     {
         $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => Rule::in(['todo', 'done']),
-            'priority' => 'nullable|integer|min:1|max:5',
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::enum(TaskStatus::class)],
+            'priority' => ['integer', 'min:1', 'max:5'],
         ]);
 
-        if ($task->status === 'done') {
+        if ($task->status === TaskStatus::Done) {
             return response()->json(['message' => 'You can\'t change a task that has already been completed'], 400);
         }
 
@@ -114,10 +117,10 @@ class TaskController extends Controller
     public function complete(Request $request, Task $task): JsonResponse
     {
         $request->validate([
-            'status' => 'required|boolean',
+            'status' => ['required', 'boolean'],
         ]);
 
-        if ($task->status === 'done') {
+        if ($task->status === TaskStatus::Done) {
             return response()->json(['message' => 'Task already done!'], 400);
         }
 
@@ -125,7 +128,7 @@ class TaskController extends Controller
             return response()->json(['message' => 'Cannot complete task: Some child tasks are not done!'], 400);
         }
 
-        $task->status = 'done';
+        $task->status = TaskStatus::Done;
         $task->completed_at = Carbon::now();
 
         $task->save();
@@ -145,8 +148,7 @@ class TaskController extends Controller
 
         // Check each child
         foreach ($children as $child) {
-            // If child is not done, return false
-            if ($child->status !== 'done') {
+            if ($child->status !== TaskStatus::Done) {
                 return false;
             }
 
@@ -161,7 +163,7 @@ class TaskController extends Controller
 
     public function destroy(Task $task): JsonResponse
     {
-        if ($task->status === 'done') {
+        if ($task->status === TaskStatus::Done) {
             return response()->json(['message' => 'You cannot delete a completed task.'], 400);
         }
 
