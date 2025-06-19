@@ -1,0 +1,527 @@
+openapi: 3.0.3
+info:
+  title: Todo List API
+  description: |-
+    This API is for managing tasks (TODO list). It allows users to register, log in, create, view, update, and delete their tasks.
+
+    Authentication is handled using Laravel Sanctum tokens (Bearer Token).
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Main API server
+
+paths:
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account and returns a token for API access.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: User's name (also used for login).
+                  example: myuser
+                password:
+                  type: string
+                  format: password
+                  description: User's password (minimum 4 characters).
+                  example: password
+                password_confirmation:
+                  type: string
+                  format: password
+                  description: Password confirmation.
+                  example: password
+              required:
+                - name
+                - password
+                - password_confirmation
+      responses:
+        '201':
+          description: Registration successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Registration successful
+                  token:
+                    type: string
+                    example: "1|aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+                  name:
+                    type: string
+                    example: myuser
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticates a user and returns an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: User's name.
+                  example: myuser
+                password:
+                  type: string
+                  format: password
+                  description: User's password.
+                  example: password
+              required:
+                - name
+                - password
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  name:
+                    type: string
+                    example: myuser
+                  token:
+                    type: string
+                    example: "2|aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneral'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+
+  /logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Revokes the current user's access token.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out (token revoked).
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneral'
+
+  /user:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user information
+      description: Returns information about the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access.
+
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Get list of tasks
+      description: Returns a list of the current user's tasks with filtering and sorting options.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by task status.
+          schema:
+            type: string
+            enum: [todo, done]
+        - name: priority
+          in: query
+          description: Filter by priority (1 to 5).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: title
+          in: query
+          description: Filter by title (partial match).
+          schema:
+            type: string
+        - name: description
+          in: query
+          description: Filter by description (partial match).
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          description: "Sort tasks. Example: `priority:desc,created_at:asc`."
+          schema:
+            type: string
+            example: 'priority:desc'
+      responses:
+        '200':
+          description: List of tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized access.
+
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      description: Adds a new task for the current user.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Task title.
+                  example: "Read a book"
+                description:
+                  type: string
+                  description: Detailed task description.
+                  example: "Finish chapter 3 of 'The Pragmatic Programmer'."
+                parent_id:
+                  type: integer
+                  nullable: true
+                  description: ID of the parent task (for subtasks).
+                  example: null
+                priority:
+                  type: integer
+                  description: Priority from 1 to 5.
+                  example: 4
+              required:
+                - title
+      responses:
+        '201':
+          description: Task successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+        '401':
+          description: Unauthorized access.
+
+  /tasks/{task}:
+    get:
+      tags:
+        - Tasks
+      summary: Get a single task
+      description: Returns details of a specific task by its ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task
+          in: path
+          required: true
+          description: Task ID.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found.
+        '401':
+          description: Unauthorized access.
+
+    put:
+      tags:
+        - Tasks
+      summary: Update a task
+      description: Updates an existing task. Cannot update a completed task.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task
+          in: path
+          required: true
+          description: ID of the task to update.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: New task title.
+                  example: "Updated task title"
+                description:
+                  type: string
+                  description: New task description.
+                  example: "Updated description."
+                priority:
+                  type: integer
+                  description: New priority (1-5).
+                  example: 3
+              required:
+                - title
+      responses:
+        '200':
+          description: Task successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid request (e.g., attempting to update a completed task).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneral'
+        '404':
+          description: Task not found.
+        '422':
+          description: Validation error.
+        '401':
+          description: Unauthorized access.
+
+    delete:
+      tags:
+        - Tasks
+      summary: Delete a task
+      description: Deletes a task. Cannot delete a completed task.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task
+          in: path
+          required: true
+          description: ID of the task to delete.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task successfully deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: The task was successfully deleted.
+        '400':
+          description: Invalid request (e.g., attempting to delete a completed task).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneral'
+        '404':
+          description: Task not found.
+        '401':
+          description: Unauthorized access.
+
+  /tasks/{task}/complete:
+    patch:
+      tags:
+        - Tasks
+      summary: Mark a task as completed
+      description: Sets the task status to 'done'. Possible only if all subtasks are also completed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task
+          in: path
+          required: true
+          description: Task ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                  description: "Must be `true` to complete the task."
+                  example: true
+              required:
+                - status
+      responses:
+        '200':
+          description: Task successfully completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid request (e.g., task already completed or subtasks not completed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGeneral'
+        '404':
+          description: Task not found.
+        '401':
+          description: Unauthorized access.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Enter the token in the format: Bearer {token}"
+
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        user_id:
+          type: integer
+          readOnly: true
+          example: 1
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+        title:
+          type: string
+          example: "My First Task"
+        description:
+          type: string
+          nullable: true
+          example: "A description for the task."
+        status:
+          type: string
+          enum: [todo, done]
+          example: "todo"
+        priority:
+          type: integer
+          example: 5
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          type: string
+          example: "myuser"
+        email:
+          type: string
+          format: email
+          example: "myuser" # Based on controller logic
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ErrorValidation:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "The given data was invalid."
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            password: ["The password confirmation does not match."]
+
+    ErrorGeneral:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Invalid credentials"
