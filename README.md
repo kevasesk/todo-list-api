@@ -9,6 +9,8 @@ Before you begin, ensure you have the following software installed on your machi
 
 * [Docker](https://www.docker.com/products/docker-desktop)
 * [Composer](https://getcomposer.org/)
+* I used Docker version 28.2.2, build e6534b4
+* I used Ubuntu 22.04.5 LTS
 
 ### Installation
 
