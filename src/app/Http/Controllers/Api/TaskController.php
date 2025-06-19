@@ -7,61 +7,66 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Enums\TaskStatus;
+use App\Repositories\TaskRepository;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
-use Carbon\Carbon;
-use Illuminate\Validation\Rules\Enum;
 
 class TaskController extends Controller
 {
+    public function __construct(
+        protected TaskRepository $taskRepository
+    ){}
+
     public function index(Request $request): JsonResponse
     {
-        $query = Task::where('user_id', $request->user()->id);
+        $userId = $request->user()->id;
+
+        $filters = [];
 
         if ($request->has('status')) {
-            $status = TaskStatus::from($request->input('status'));
-            $query->where('status', $status->value);
+            $filters['status'] = TaskStatus::from($request->input('status'))->value;
         }
 
         if ($request->has('priority')) {
-            $priority = (int) $request->priority;
-
+            $priority = (int) $request->input('priority');
             if ($priority >= 1 && $priority <= 5) {
-                $query->where('priority', $priority);
+                $filters['priority'] = $priority;
             }
         }
 
         if ($request->has('title')) {
-            $query->where('title', 'like', '%' . $request->title . '%');
+            $filters['title'] = $request->input('title');
         }
 
         if ($request->has('description')) {
-            $query->where('description', 'like', '%' . $request->description . '%');
+            $filters['description'] = $request->input('description');
         }
+
+        $sorts = [];
 
         if ($request->has('sort_by')) {
             $allowedSortFields = ['created_at', 'completed_at', 'priority'];
             $allowedSortDirections = ['asc', 'desc'];
 
-            $sorts = explode(',', $request->sort_by);
+            $sortCriteria = explode(',', $request->input('sort_by'));
 
-            foreach ($sorts as $sortCriterion) {
+            foreach ($sortCriteria as $sortCriterion) {
                 $parts = explode(':', $sortCriterion);
                 $field = $parts[0];
                 $direction = count($parts) > 1 ? strtolower($parts[1]) : 'asc';
 
                 if (in_array($field, $allowedSortFields) && in_array($direction, $allowedSortDirections)) {
-                    $query->orderBy($field, $direction);
+                    $sorts[] = ['field' => $field, 'direction' => $direction];
                 }
             }
         } else {
-            $query->orderBy('created_at', 'desc');
+            $sorts[] = ['field' => 'id', 'direction' => 'desc'];
         }
 
-        $allUserTasks = $query->get();
+        $tasks = $this->taskRepository->getTasksForUser($userId, $filters, $sorts);
 
-        return response()->json($allUserTasks);
+        return response()->json($tasks);
     }
 
     public function store(Request $request): JsonResponse
@@ -73,16 +78,16 @@ class TaskController extends Controller
             'priority' => ['integer', 'min:1', 'max:5'],
         ]);
 
-        $task = new Task();
-        $task->user_id = $request->user()->id;
-        $task->parent_id = $request->input('parent_id');
-        $task->title = $request->input('title');
-        $task->description = $request->input('description');
-        $task->status = $request->input('status', 'todo');
-        $task->priority = $request->input('priority', 5);
-        $task->completed_at = $task->status === TaskStatus::Done ? Carbon::now() : null;
+        $data = [
+            'user_id' => $request->user()->id,
+            'parent_id' => $request->input('parent_id'),
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+            'status' => $request->input('status', 'todo'),
+            'priority' => $request->input('priority', 5),
+        ];
 
-        $task->save();
+        $task = $this->taskRepository->createTask($data);
 
         return response()->json($task, 201);
     }
@@ -105,13 +110,15 @@ class TaskController extends Controller
             return response()->json(['message' => 'You can\'t change a task that has already been completed'], 400);
         }
 
-        $task->title = $request->input('title');
-        $task->description = $request->input('description');
-        $task->priority = $request->input('priority');
+        $data = [
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+            'priority' => $request->input('priority'),
+        ];
 
-        $task->save();
+        $updatedTask = $this->taskRepository->updateTask($task, $data);
 
-        return response()->json($task);
+        return response()->json($updatedTask);
     }
 
     public function complete(Request $request, Task $task): JsonResponse
@@ -124,41 +131,13 @@ class TaskController extends Controller
             return response()->json(['message' => 'Task already done!'], 400);
         }
 
-        if (!$this->areAllChildrenDone($task)) {
+        if (!$this->taskRepository->areAllChildrenDone($task->id)) {
             return response()->json(['message' => 'Cannot complete task: Some child tasks are not done!'], 400);
         }
 
-        $task->status = TaskStatus::Done;
-        $task->completed_at = Carbon::now();
+        $updatedTask = $this->taskRepository->markTaskAsDone($task);
 
-        $task->save();
-
-        return response()->json($task);
-    }
-
-    private function areAllChildrenDone(Task $task): bool
-    {
-        // Get all direct children
-        $children = Task::where('parent_id', $task->id)->get();
-
-        // If no children, return true
-        if ($children->isEmpty()) {
-            return true;
-        }
-
-        // Check each child
-        foreach ($children as $child) {
-            if ($child->status !== TaskStatus::Done) {
-                return false;
-            }
-
-            // Recursively check child's children
-            if (!$this->areAllChildrenDone($child)) {
-                return false;
-            }
-        }
-
-        return true;
+        return response()->json($updatedTask);
     }
 
     public function destroy(Task $task): JsonResponse
@@ -167,7 +146,7 @@ class TaskController extends Controller
             return response()->json(['message' => 'You cannot delete a completed task.'], 400);
         }
 
-        $task->delete();
+        $this->taskRepository->deleteTask($task);
 
         return response()->json(['message' => 'The task was successfully deleted.']);
     }

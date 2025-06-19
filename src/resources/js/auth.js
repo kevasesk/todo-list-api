@@ -60,7 +60,6 @@ function handleUserLogin(event) {
 
     const name = form.querySelector('#name_login').value;
     const password = form.querySelector('#password_login').value;
-    const remember = form.querySelector('#remember').checked;
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
     fetch('/api/login', {
@@ -72,8 +71,7 @@ function handleUserLogin(event) {
         },
         body: JSON.stringify({
             name: name,
-            password: password,
-            remember: remember
+            password: password
         })
     }).then(response => {
         if (response.ok) {
@@ -122,5 +120,26 @@ document.addEventListener('click', function(event) {
 
     if (event.target.matches('[data-user-logout-button]')) {
         handleUserLogout(event);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.querySelector('[data-user-login-form]');
+    const registerForm = document.querySelector('[data-user-register-form]');
+    const switchToRegister = document.querySelector('[data-switch-to-register]');
+    const switchToLogin = document.querySelector('[data-switch-to-login]');
+
+    if (loginForm && registerForm && switchToRegister && switchToLogin) {
+        switchToRegister.addEventListener('click', function() {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            registerForm.querySelector('input[name="name"]').focus();
+        });
+
+        switchToLogin.addEventListener('click', function() {
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            loginForm.querySelector('input[name="name"]').focus();
+        });
     }
 });

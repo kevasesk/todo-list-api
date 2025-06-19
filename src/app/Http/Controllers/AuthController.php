@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\User;
+use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +15,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        protected UserRepository $userRepository
+    ){}
+
     public function index()
     {
         if (Auth::check()) {
@@ -32,10 +36,10 @@ class AuthController extends Controller
         ]);
 
         try {
-            User::create([
+            $this->userRepository->createUser([
                 'name' => $request->name,
                 'email' => $request->name,
-                'password' => Hash::make($request->password),
+                'password' => $request->password,
             ]);
         } catch (\Exception $e) {
             return redirect()->route('index')->with('error', 'Something went wrong during registration. Please try again.');
@@ -86,10 +90,10 @@ class AuthController extends Controller
         }
 
         try {
-            $user = User::create([
+            $user = $this->userRepository->createUser([
                 'name' => $request->name,
-                'email' => $request->name, // For simple auth
-                'password' => Hash::make($request->password)
+                'email' => $request->name,
+                'password' => $request->password,
             ]);
 
             return response()->json([
@@ -120,7 +124,7 @@ class AuthController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $user = User::where('name', $request->name)->first();
+        $user = $this->userRepository->findUserByName($request->name);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([

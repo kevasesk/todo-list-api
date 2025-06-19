@@ -30,8 +30,19 @@
             </div>
         @endif
 
-        <h2>Register</h2>
-        <form method="POST" data-user-register-form>
+        <form method="POST" data-user-login-form>
+            @csrf
+            <label for="name_login">Name:</label><br>
+            <input type="text" id="name_login" name="name" value="{{ old('name') }}" required><br><br>
+
+            <label for="password_login">Password:</label><br>
+            <input type="password" id="password_login" name="password" required><br><br>
+
+            <button type="button" data-user-login-button>Login</button>
+            <p><button type="button" data-switch-to-register>Don't have an account? Register</button></p>
+        </form>
+
+        <form method="POST" data-user-register-form class="hidden">
             @csrf
             <label for="name">Name:</label><br>
             <input type="text" id="name" name="name" value="{{ old('name') }}" required><br><br>
@@ -43,24 +54,8 @@
             <input type="password" id="password_confirmation" name="password_confirmation" required><br><br>
 
             <button type="submit" data-user-register-button>Register</button>
+            <p><button type="button" data-switch-to-login>Already have an account? Login</button></p>
         </form>
 
-        <hr>
-
-        <h2>Login</h2>
-        <form method="POST" data-user-login-form>
-            @csrf
-            <label for="name_login">Name:</label><br>
-            <input type="text" id="name_login" name="name" value="{{ old('name') }}" required><br><br>
-
-            <label for="password_login">Password:</label><br>
-            <input type="password" id="password_login" name="password" required><br><br>
-
-            <label for="remember">
-                <input type="checkbox" name="remember" id="remember"> Remember Me
-            </label><br><br>
-
-            <button type="button" data-user-login-button>Login</button>
-        </form>
     </body>
 </html>

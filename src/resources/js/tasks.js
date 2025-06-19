@@ -34,6 +34,16 @@ let currentSorts = [
     }
 ];
 
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerText = message;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 2000);
+}
+
 function handleTaskCancel() {
     formTitle.innerHTML = 'Create New';
 
@@ -46,11 +56,13 @@ function handleTaskCancel() {
     taskDescriptionField.value = '';
     taskPriorityField.value = '5';
 }
+
 async function handleTaskAddChild(event) {
     const parentId = event.target.dataset.id;
     taskParentIdField.value = parentId;
     taskTitleField.focus();
 }
+
 async function handleTaskEdit(event) {
     const taskId = event.target.dataset.id;
 
@@ -62,7 +74,9 @@ async function handleTaskEdit(event) {
         }
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Unknown error');
+            });
         }
 
         return response.json();
@@ -79,19 +93,16 @@ async function handleTaskEdit(event) {
         formTitle.innerHTML = 'Edit Task:';
 
     }).catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        showNotification('There was a problem with the operation: ' + error.message);
     });
 }
+
 async function handleTaskUpdate(event) {
     event.stopPropagation();
     const formData = new FormData(createForm);
     const taskId = formData.get('id');
-    //const data = {};
     const data = Object.fromEntries(formData.entries());
 
-    //for (const [key, value] of formData.entries()) {
-    //    data[key] = value;
-    //}
     await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
@@ -102,16 +113,20 @@ async function handleTaskUpdate(event) {
         body: JSON.stringify(data)
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Unknown error');
+            });
         }
         initTasks();
         handleTaskCancel();
 
         return response.json();
     }).catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        console.log(error);
+        showNotification('There was a problem with the fetch operation: ' + error.message);
     });
 }
+
 async function handleTaskCreate(event) {
     event.stopPropagation();
     const formData = new FormData(createForm);
@@ -124,7 +139,9 @@ async function handleTaskCreate(event) {
         body: formData
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Unknown error');
+            });
         }
         initTasks();
 
@@ -135,7 +152,7 @@ async function handleTaskCreate(event) {
 
         return response.json();
     }).catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        showNotification('There was a problem with the fetch operation: ' + error.message);
     });
 }
 
@@ -156,7 +173,9 @@ async function handleTaskCompletion(event) {
         })
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Unknown error');
+            });
         }
         initTasks();
 
@@ -164,7 +183,7 @@ async function handleTaskCompletion(event) {
     }).then(data => {
         console.log('Task updated successfully:', data);
     }).catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        showNotification('There was a problem with the fetch operation: ' + error.message);
         checkbox.checked = !isCompleted;
     });
 }
@@ -181,13 +200,15 @@ async function handleTaskRemove(event) {
         }
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Unknown error');
+            });
         }
         initTasks();
 
         return response.json();
     }).catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
+        showNotification('There was a problem with the fetch operation: ' + error.message);
     });
 }
 
@@ -220,75 +241,47 @@ function handleSort(event) {
 }
 
 function renderTasks(allTasks) {
-    const getSortIndicator = (field) => {
-        const sort = currentSorts.find(s => s.field === field);
-        if (sort) {
-            const index = currentSorts.findIndex(s => s.field === field) + 1;
-            const indicator = sort.direction === 'asc' ? '▲' : '▼';
-            return ` <span class="sort-indicator">${indicator} ${currentSorts.length > 1 ? index : ''}</span>`;
-        }
-        return '';
-    };
-
-    let tableHTML = '<table><tbody>';
-
-    tableHTML += `<tr class="table-header">
-        <th>Status</th>
-        <th>Id</th>
-        <th>Parent</th>
-        <th>Title</th>
-        <th>Description</th>
-        <th data-sortable-field="priority" class="sortable">Priority${getSortIndicator('priority')}</th>
-        <th data-sortable-field="completed_at" class="sortable">Completed At${getSortIndicator('completed_at')}</th>
-        <th data-sortable-field="created_at" class="sortable">Created At${getSortIndicator('created_at')}</th>
-        <th colspan="3">Actions</th>
-    </tr>`;
-
-    tableHTML += `<tr>
-        <th>
-            <select data-filter="status">
-                <option value=""></option>
-                <option value="todo" ${currentFilters['status'] === 'todo' ? 'selected' : ''}>Todo</option>
-                <option value="done" ${currentFilters['status'] === 'done' ? 'selected' : ''}>Done</option>
-            </select>
-        </th>
-        <th></th>
-        <th></th>
-        <th><input type="text" data-filter="title" value="${currentFilters['title']}"/></th>
-        <th><input type="text" data-filter="description" value="${currentFilters['description']}" /></th>
-        <th><input type="number" min="1" max="5" data-filter="priority" value="${currentFilters['priority']}" /></th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
-    </tr>`;
+    let rowsHTML = '';
 
     if (allTasks.length === 0) {
-        tableHTML += '<tr><td colspan="11">No tasks found.</td></tr>';
+        rowsHTML += '<tr><td colspan="11">No tasks found.</td></tr>';
     } else {
         allTasks.forEach(task => {
             let isChecked = task.status === 'done' ? 'checked' : '';
             let doneStatusClass = task.status === 'done' ? 'task-done' : '';
 
-            tableHTML += `<tr class="${doneStatusClass}">
+            rowsHTML += `<tr class="${doneStatusClass}">
                 <td><input type="checkbox" data-action-complete data-id="${task.id}" ${isChecked}/></td>
                 <td>${task.id}</td>
                 <td>${task.parent_id || ''}</td>
                 <td>${task.title}</td>
                 <td>${task.description || ''}</td>
                 <td>${task.priority}</td>
-                <td data-completed-at>${task.completed_at || '' }</td>
-                <td>${task.created_at || '' }</td>
+                <td data-completed-at>${task.completed_at || ''}</td>
+                <td>${task.created_at || ''}</td>
                 <td><button type="button" class="btn-icon" data-action-remove data-id="${task.id}" title="Remove">❌</button></td>
                 <td><button type="button" class="btn-icon" data-action-edit data-id="${task.id}" title="Edit">✏️</button></td>
                 <td><button type="button" class="btn-icon" data-action-child data-id="${task.id}" title="Add Child Task">➕</button></td>
             </tr>`;
         });
     }
-    tableHTML += '</tbody></table>';
-    tasksList.innerHTML = tableHTML;
-    userNameElement.innerHTML = localStorage.getItem('name');
 
+    document.getElementById('tasks-rows').innerHTML = rowsHTML;
+
+    // Update sort indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const field = indicator.parentElement.dataset.sortableField;
+        const sort = currentSorts.find(s => s.field === field);
+        if (sort) {
+            const index = currentSorts.findIndex(s => s.field === field) + 1;
+            const direction = sort.direction === 'asc' ? '▲' : '▼';
+            indicator.textContent = `${direction} ${currentSorts.length > 1 ? index : ''}`;
+        } else {
+            indicator.textContent = '';
+        }
+    });
+
+    userNameElement.innerHTML = localStorage.getItem('name');
     taskApp.classList.remove('hidden');
     taskAppError.classList.add('hidden');
 }
@@ -324,14 +317,14 @@ async function initTasks() {
         });
 
         if (response.status === 401) {
-            console.error('Fetch tasks failed: 401 Unauthorized. Token might be invalid or expired.');
+            showNotification('Fetch tasks failed: 401 Unauthorized. Token might be invalid or expired.');
             localStorage.removeItem('api_token');
             window.location.href = '/';
         }
 
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ message: 'Unknown error', status: response.status }));
-            console.error(`Fetch tasks failed with status ${response.status}:`, errorBody.message || errorBody);
+            showNotification(`Fetch tasks failed with status ${response.status}: ${errorBody.message || errorBody}`);
             return;
         }
 
@@ -339,7 +332,7 @@ async function initTasks() {
         renderTasks(tasks);
 
     } catch (error) {
-        console.error('There was a problem with the fetch operation (network or CORS):', error);
+        showNotification('There was a problem with the fetch operation (network or CORS): ' + error.message);
     }
 }
 
