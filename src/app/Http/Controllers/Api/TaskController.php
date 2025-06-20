@@ -140,10 +140,14 @@ class TaskController extends Controller
         return response()->json($updatedTask);
     }
 
-    public function destroy(Task $task): JsonResponse
+    public function destroy(Request $request, Task $task): JsonResponse
     {
         if ($task->status === TaskStatus::Done) {
             return response()->json(['message' => 'You cannot delete a completed task.'], 400);
+        }
+
+        if ($task->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'You cannot delete a task.'], 400);
         }
 
         $this->taskRepository->deleteTask($task);
